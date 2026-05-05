@@ -12,7 +12,7 @@ import (
 const (
 	// tcpWaitTimeout implements a TCP half-close timeout.
 	tcpWaitTimeout = 10 * time.Second
-	readTimeout    = 30 * time.Second
+	readTimeout    = 0
 )
 
 // Pipe 在两个连接之间建立双向数据通道
@@ -60,7 +60,6 @@ func pipeHalf(ctx context.Context, src, dst io.ReadWriteCloser) error {
 	buf := bufpool.Get(bufferSize / 2)
 	defer bufpool.Put(buf)
 
-
 	// 创建带超时的读取器
 	reader := &readDeadliner{
 		Reader: src,
@@ -75,7 +74,11 @@ func pipeHalf(ctx context.Context, src, dst io.ReadWriteCloser) error {
 		default:
 			// 设置读取超时
 			if rd, ok := src.(interface{ SetReadDeadline(time.Time) error }); ok {
-				rd.SetReadDeadline(time.Now().Add(readTimeout))
+				if readTimeout > 0 {
+					rd.SetReadDeadline(time.Now().Add(readTimeout))
+				} else {
+					rd.SetReadDeadline(time.Time{})
+				}
 			}
 
 			// 读取数据
